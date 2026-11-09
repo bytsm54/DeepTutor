@@ -1,0 +1,22 @@
+name: deeptutor
+
+services:
+  deeptutor:
+    image: ${DEEPTUTOR_IMAGE:-deeptutor-local:1.7.2-no-signup-manim}
+    restart: unless-stopped
+    ports:
+      - "${DEEPTUTOR_BIND:-127.0.0.1}:${DEEPTUTOR_PORT:-3782}:3782"
+    environment:
+      TZ: Asia/Shanghai
+      HOME: /app/data
+    volumes:
+      - deeptutor-data:/app/data
+      - ./model-picker/settings.py:/app/deeptutor/api/routers/settings.py:ro
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  deeptutor-data:

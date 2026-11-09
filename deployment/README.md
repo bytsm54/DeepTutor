@@ -26,7 +26,8 @@ For an upstream release or backend update, first adapt and verify
 `Dockerfile.base`, the frontend patches, and the model-picker bind mount;
 then update the base revision and image guard in `deploy.sh`.
 
-Server-specific `compose.yaml`, `.env`, the generated model-picker file,
+The reference `compose.example.yaml` documents the service, ports and mounts;
+it is not applied automatically. Server-specific `compose.yaml`, `.env`, the generated model-picker file,
 credentials, data, and backups remain in `/home/ubuntu/deeptutor` and are not
 part of this repository. The deployment keeps their existing values. Backup
 directories are created under `/home/ubuntu/deeptutor/backups`.
