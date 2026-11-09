@@ -180,6 +180,8 @@
   "Attachment processing": "附件处理中",
   "Attach": "附件",
   "Attach files": "上传附件",
+  "Take photo": "拍照上传",
+  "Capture a question with your camera.": "用相机拍下题目，作为附件添加。",
   "Uploaded to DeepTutor": "已上传到 DeepTutor",
   "Sending to DeepTutor": "正在发送到 DeepTutor",
   "Sending to document parser": "正在提交到文档解析器",

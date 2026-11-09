@@ -43,6 +43,7 @@ import {
 import {
   ATTACHMENT_ACCEPT,
 } from "@/lib/doc-attachments";
+import { prepareCapturedPhoto } from "@/lib/capture-photo";
 import { useTranslation } from "react-i18next";
 
 import type { SelectedHistorySession } from "@/components/chat/HistorySessionPicker";
@@ -526,6 +527,7 @@ export default memo(function ChatComposer({
   const restoreFocusOnReturnRef = useRef(false);
   const inputHandleRef = useRef<ComposerInputHandle>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
   const draftAttachmentsRef = useRef(attachments);
   const addDraftFilesRef = useRef(onAddFiles);
   useEffect(() => {
@@ -796,6 +798,30 @@ export default memo(function ChatComposer({
       event.target.value = "";
     },
     [onAddFiles],
+  );
+
+  // Photos arrive at full sensor size; shrink them before they join the
+  // attachment list so one shot does not cost the whole message quota.
+  const handleCameraInputChange = useCallback(
+    async (event: React.ChangeEvent<HTMLInputElement>) => {
+      const input = event.currentTarget;
+      const photo = input.files?.[0];
+      input.value = "";
+      if (!photo) return;
+
+      const location = currentWorkspaceDraftLocation();
+      const prepared = await prepareCapturedPhoto(photo);
+      const current = currentWorkspaceDraftLocation();
+      if (
+        cameraInputRef.current !== input ||
+        current.workspaceId !== location.workspaceId ||
+        current.pathname !== location.pathname
+      ) {
+        return;
+      }
+      addDraftFilesRef.current([prepared]);
+    },
+    [],
   );
 
   const focusTextarea = useCallback(() => {
@@ -1314,6 +1340,18 @@ export default memo(function ChatComposer({
             tabIndex={-1}
           />
 
+          {/* Supporting browsers offer the rear camera through the file picker. */}
+          <input
+            ref={cameraInputRef}
+            type="file"
+            accept="image/*"
+            capture="environment"
+            onChange={handleCameraInputChange}
+            className="hidden"
+            aria-hidden="true"
+            tabIndex={-1}
+          />
+
           {inputHeader}
           {attachments.map((file, index) =>
             isQuoteAttachment(file) ? (
@@ -1405,6 +1443,11 @@ export default memo(function ChatComposer({
                         personaAvailable={!onPersonaSelectionChange}
                         agentsAvailable={agentsAvailable}
                         readingAvailable={Boolean(onSelectReadingPicker)}
+                        // Open the picker synchronously within the user gesture.
+                        onCapturePhoto={() => {
+                          cameraInputRef.current?.click();
+                          onSetSpaceMenuOpen(false);
+                        }}
                         onSelectItem={(key) => {
                           onSetSpaceMenuOpen(false);
                           if (key === "attach") handlePickFiles();

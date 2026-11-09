@@ -5,6 +5,7 @@ import {
   BookMarked,
   BookOpen,
   Bot,
+  Camera,
   ChevronRight,
   Database,
   Paperclip,
@@ -56,6 +57,12 @@ interface ChatSpaceMenuProps {
   agentsAvailable?: boolean;
   /** Show imported Reading materials on surfaces that wire its picker. */
   readingAvailable?: boolean;
+  /**
+   * Offer a "Take photo" row under "Attach files". Only the resources panel
+   * passes it: the camera is a second way into the attachment list, not a
+   * separate destination, so the other variants stay unchanged.
+   */
+  onCapturePhoto?: () => void;
   onSelectItem: (key: SelectableSpaceKey) => void;
 }
 
@@ -71,6 +78,12 @@ const ITEM_ORDER: SelectableSpaceKey[] = [
   "persona",
   "memory",
 ];
+
+/** Row order with the camera entry tucked under "Attach files". */
+function orderFor(variant: ChatSpaceMenuProps["variant"], photo: boolean) {
+  if (!photo || variant !== "resources") return ITEM_ORDER;
+  return [...ITEM_ORDER.slice(0, 1), "photo" as const, ...ITEM_ORDER.slice(1)];
+}
 
 function countFor(
   key: SelectableSpaceKey,
@@ -110,6 +123,7 @@ export default memo(function ChatSpaceMenu({
   personaAvailable = true,
   agentsAvailable = true,
   readingAvailable = false,
+  onCapturePhoto,
   onSelectItem,
 }: ChatSpaceMenuProps) {
   const { t } = useTranslation();
@@ -118,13 +132,14 @@ export default memo(function ChatSpaceMenu({
 
   // Render the items in a fixed, hand-tuned order so the menu always reads
   // the same regardless of how SPACE_ITEMS may be reordered for navigation.
-  const items = ITEM_ORDER.filter((key) => {
-    if (key === "knowledge") return knowledgeAvailable;
-    if (key === "persona") return personaAvailable;
-    if (key === "my_agents") return agentsAvailable;
-    if (key === "reading") return readingAvailable;
-    return true;
-  })
+  const items = orderFor(variant, Boolean(onCapturePhoto))
+    .filter((key) => {
+      if (key === "knowledge") return knowledgeAvailable;
+      if (key === "persona") return personaAvailable;
+      if (key === "my_agents") return agentsAvailable;
+      if (key === "reading") return readingAvailable;
+      return true;
+    })
     .map((key) => {
       // The first two entries are composer-only concepts (not Space pages),
       // so they are defined here rather than in SPACE_ITEMS.
@@ -134,6 +149,14 @@ export default memo(function ChatSpaceMenu({
           label: "Attach files",
           description: "Upload images, Office docs, code & text.",
           icon: Paperclip,
+        };
+      }
+      if (key === "photo") {
+        return {
+          key,
+          label: "Take photo",
+          description: "Capture a question with your camera.",
+          icon: Camera,
         };
       }
       if (key === "knowledge") {
@@ -224,7 +247,7 @@ export default memo(function ChatSpaceMenu({
         setActiveIdx((i) => (i - 1 + list.length) % list.length);
       } else if (e.key === "Enter") {
         const item = list[activeIdxRef.current];
-        if (!item) return;
+        if (!item || item.key === "photo") return;
         e.preventDefault();
         onSelectItemRef.current(item.key as SelectableSpaceKey);
       }
@@ -255,13 +278,14 @@ export default memo(function ChatSpaceMenu({
         }
       >
         {items.map(({ key, label, description, icon: Icon }, idx) => {
-          const count = countFor(key as SelectableSpaceKey, selectedCounts);
+          const count =
+            key === "photo" ? 0 : countFor(key as SelectableSpaceKey, selectedCounts);
           const isActive = isMention && idx === activeIdx;
-          // Two kinds of rows, Claude-style: "attach" is a direct action
-          // (opens the file dialog), everything after it opens a
+          // Two kinds of rows, Claude-style: "attach" and "photo" are direct
+          // actions (file dialog / camera), everything after them opens a
           // second-level picker — those get a trailing chevron, and a
           // divider separates the two groups.
-          const opensPicker = key !== "attach";
+          const opensPicker = key !== "attach" && key !== "photo";
           return (
             <Fragment key={key}>
               {variant !== "resources" &&
@@ -279,12 +303,16 @@ export default memo(function ChatSpaceMenu({
                 aria-selected={isMention ? isActive : undefined}
                 onMouseEnter={isMention ? () => setActiveIdx(idx) : undefined}
                 onClick={(e) => {
+                  if (key === "photo") {
+                    onCapturePhoto?.();
+                    return;
+                  }
                   // Record the row's rect so the fullscreen picker can expand
                   // outward from exactly this clickable box.
                   setPickerOrigin(e.currentTarget.getBoundingClientRect());
                   onSelectItem(key as SelectableSpaceKey);
                 }}
-                className={`${variant === "resources" && key === "attach" ? "col-span-2" : ""} flex w-full items-center gap-2.5 text-left transition-[background-color,transform] active:scale-[0.98] active:bg-[var(--muted)]/70 ${
+                className={`${variant === "resources" && (key === "attach" || key === "photo") ? "col-span-2" : ""} flex w-full items-center gap-2.5 text-left transition-[background-color,transform] active:scale-[0.98] active:bg-[var(--muted)]/70 ${
                   isActive || count > 0
                     ? "bg-[var(--primary)]/[0.07]"
                     : "hover:bg-[var(--muted)]/40"
