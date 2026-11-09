@@ -1,0 +1,4 @@
+#!/bin/sh
+# The application runs as UID 1000 in Docker, where Chromium cannot create
+# its nested PID/network sandbox. This wrapper is only used by layout checks.
+exec /usr/bin/chromium --no-sandbox --disable-dev-shm-usage "$@"
